@@ -1,0 +1,6 @@
+-r base.txt
+
+pre-commit==3.7.1
+ruff==0.5.4
+black==24.4.2
+django-debug-toolbar==4.4.6
