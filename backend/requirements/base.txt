@@ -1,0 +1,12 @@
+django==5.2
+psycopg2==2.9.10
+pillow==11.2.1
+djangorestframework==3.16.0
+django-cors-headers==4.7.0
+django-modeltranslation==0.19.14
+drf-yasg==1.21.10
+django-filter==25.1
+python-slugify==8.0.4
+django-cleanup==9.0.0
+requests==2.32.3
+python-dotenv==1.1.0

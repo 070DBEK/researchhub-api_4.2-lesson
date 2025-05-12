@@ -1,0 +1,31 @@
+default_language_version:
+  python: python3.10
+
+exclude: >
+  (\.eggs|\.git|\.hg|\.mypy_cache|\.idea|\.pytest_cache|\.tox|\.venv|venv|\.env|env|\.vscode|
+  static|media/|.*/templates|.*/migrations)
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.8
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+        language_version: python3.10
+        additional_dependencies: []
+        args: [--fast]
+
+  - repo: local
+    hooks:
+      - id: migrations-check
+        name: Check for uncreated migrations
+        entry: >
+          bash -c 'if find apps -type f -name models.py | grep .; then backend/manage.py makemigrations --check --dry-run; else echo "No models.py found, skipping migration check."; fi'
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
