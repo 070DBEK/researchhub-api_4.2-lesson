@@ -41,10 +41,10 @@ urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
 ]
 
-urlpatterns += i18n_patterns(
-    path("api/", include("courses.urls")),
-    prefix_default_language=False,  # Don't include default language in URL
-)
+# urlpatterns += i18n_patterns(
+#     path("api/", include("your_apps.urls")),
+#     prefix_default_language=False,
+# )
 
 if django_settings_module == "development":
     urlpatterns += [
