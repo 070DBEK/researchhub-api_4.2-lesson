@@ -13,18 +13,16 @@ Response structure:
 def custom_response(view):
     def inner(self, request, *args, **kwargs):
         response = super(view, self).dispatch(request, args, **kwargs)
-        list_errors = []
         response_data = response.data
-        data = dict(
-            success=True,
-            errors=list_errors,
-            data={},
-        )
+        data = {
+            "success": True,
+        }
 
-        # Agar bu error bo'lsa
         if response.exception:
             data["success"] = False
-            errors = response_data.get("errors")
+            list_errors = []
+            errors = response_data.get("errors", [])
+
             for e in errors:
                 field = e.get("field")
                 message = e.get("message")
@@ -44,6 +42,7 @@ def custom_response(view):
                         "message": message,
                     }
                 list_errors.append(error_data)
+
             data["errors"] = list_errors
         else:
             data["data"] = response_data
