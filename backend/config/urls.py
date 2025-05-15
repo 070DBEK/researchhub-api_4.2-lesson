@@ -1,4 +1,3 @@
-from django.conf.urls.i18n import i18n_patterns
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path, re_path
@@ -38,13 +37,11 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path("default-admin-panel/", admin.site.urls),
-    path("i18n/", include("django.conf.urls.i18n")),
 ]
 
-# urlpatterns += i18n_patterns(
-#     path("api/", include("your_apps.urls")),
-#     prefix_default_language=False,
-# )
+# urlpatterns += [
+#     path("api/v1/app/)", include(("app.urls", "app"), "app")),
+# ]
 
 if django_settings_module == "development":
     urlpatterns += [
