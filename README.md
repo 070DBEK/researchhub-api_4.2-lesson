@@ -426,7 +426,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Documentation**: [API Docs](http://localhost:8000/api/docs/)
 - **Issues**: [GitHub Issues](https://github.com/070DBEK/researchhub-api_4.2-lesson/issues)
-- **Email**: ahmadovozodbek55@gmail.com
+- **Email**: ahmadovozodbek80@gmail.com
 
 ## 🗺️ Roadmap
 
