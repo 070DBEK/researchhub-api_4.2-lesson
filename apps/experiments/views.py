@@ -1,14 +1,15 @@
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
-
 from .models import Experiment
 from .serializers import ExperimentSerializer, ExperimentCreateSerializer, ExperimentUpdateSerializer
 from apps.projects.models import Project
 from apps.tags.models import Tag
+
 
 User = get_user_model()
 
@@ -32,33 +33,49 @@ class ExperimentListCreateView(generics.ListCreateAPIView):
             return [IsAuthenticated()]
         return [AllowAny()]
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         project_id = serializer.validated_data.pop('project_id')
         project = get_object_or_404(Project, id=project_id, is_active=True)
 
-        # Check if user is project member
-        if not project.members.filter(user=self.request.user, is_active=True).exists():
-            raise PermissionError("Only project members can create experiments")
-
+        if not project.members.filter(user=request.user, is_active=True).exists():
+            return Response(
+                {'detail': 'Only project members can create experiments'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         collaborator_ids = serializer.validated_data.pop('collaborator_ids', [])
         tag_names = serializer.validated_data.pop('tags', [])
+        invalid_collaborators = []
+        valid_collaborators = []
+        for collaborator_id in collaborator_ids:
+            try:
+                collaborator = User.objects.get(id=collaborator_id)
+                valid_collaborators.append(collaborator)
+            except User.DoesNotExist:
+                invalid_collaborators.append(collaborator_id)
 
+        if invalid_collaborators:
+            return Response(
+                {'detail': f'Users with IDs {invalid_collaborators} do not exist'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         experiment = serializer.save(
             project=project,
-            lead_researcher=self.request.user,
-            created_by=self.request.user,
-            updated_by=self.request.user
+            lead_researcher=request.user,
+            created_by=request.user,
+            updated_by=request.user
         )
 
-        # Add collaborators
-        for collaborator_id in collaborator_ids:
-            collaborator = get_object_or_404(User, id=collaborator_id)
+        for collaborator in valid_collaborators:
             experiment.collaborators.add(collaborator)
 
-        # Add tags
         for tag_name in tag_names:
             tag, created = Tag.objects.get_or_create(name=tag_name)
             experiment.tags.add(tag)
+        response_serializer = ExperimentSerializer(experiment)
+        headers = self.get_success_headers(response_serializer.data)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class ExperimentDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -75,38 +92,57 @@ class ExperimentDetailView(generics.RetrieveUpdateDestroyAPIView):
             return [AllowAny()]
         return [IsAuthenticated()]
 
-    def perform_update(self, serializer):
-        experiment = self.get_object()
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
 
-        # Check permissions
-        if (experiment.lead_researcher != self.request.user and
-                not self.request.user.is_staff):
-            raise PermissionError("Only experiment lead researcher or admin can update experiment")
-
+        if (instance.lead_researcher != request.user and
+                not request.user.is_staff):
+            return Response(
+                {'detail': 'Only experiment lead researcher or admin can update experiment'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
         collaborator_ids = serializer.validated_data.pop('collaborator_ids', None)
         tag_names = serializer.validated_data.pop('tags', None)
 
-        experiment = serializer.save(updated_by=self.request.user)
+        if collaborator_ids is not None:
+            invalid_collaborators = []
+            valid_collaborators = []
+            for collaborator_id in collaborator_ids:
+                try:
+                    collaborator = User.objects.get(id=collaborator_id)
+                    valid_collaborators.append(collaborator)
+                except User.DoesNotExist:
+                    invalid_collaborators.append(collaborator_id)
 
-        # Update collaborators
+            if invalid_collaborators:
+                return Response(
+                    {'detail': f'Users with IDs {invalid_collaborators} do not exist'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        experiment = serializer.save(updated_by=request.user)
+
         if collaborator_ids is not None:
             experiment.collaborators.clear()
-            for collaborator_id in collaborator_ids:
-                collaborator = get_object_or_404(User, id=collaborator_id)
+            for collaborator in valid_collaborators:
                 experiment.collaborators.add(collaborator)
 
-        # Update tags
         if tag_names is not None:
             experiment.tags.clear()
             for tag_name in tag_names:
                 tag, created = Tag.objects.get_or_create(name=tag_name)
                 experiment.tags.add(tag)
 
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+        return Response(ExperimentSerializer(experiment).data)
+
     def perform_destroy(self, instance):
-        # Check permissions
         if (instance.lead_researcher != self.request.user and
                 not self.request.user.is_staff):
-            raise PermissionError("Only experiment lead researcher or admin can delete experiment")
-
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only experiment lead researcher or admin can delete experiment")
         instance.is_active = False
         instance.save()

@@ -26,22 +26,14 @@ urlpatterns = [
     path('api/v1/analytics/', include('apps.analytics.urls')),
     path('api/v1/tags/', include('apps.tags.urls')),
 
-    # Nested resources
-    path('api/v1/findings/<int:finding_id>/comments/', include('apps.comments.urls')),
-    path('api/v1/publications/<int:publication_id>/comments/', include('apps.comments.urls')),
-    path('api/v1/findings/<int:finding_id>/attachments/', include('apps.attachments.urls')),
-
     # Likes
     path('api/v1/', include('apps.likes.urls')),
 
-    # Comments (standalone)
+    # Comments
     path('api/v1/comments/', include('apps.comments.urls')),
 
-    # Attachments (standalone)
+    # Attachments
     path('api/v1/attachments/', include('apps.attachments.urls')),
-
-    # Search
-    path('api/v1/search/', include('apps.tags.urls')),
 
     # API Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

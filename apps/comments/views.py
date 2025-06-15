@@ -9,6 +9,7 @@ from .serializers import CommentSerializer, CommentCreateSerializer, CommentUpda
 from apps.findings.models import Finding
 from apps.publications.models import Publication
 
+
 User = get_user_model()
 
 
@@ -33,7 +34,7 @@ class FindingCommentListCreateView(generics.ListCreateAPIView):
         return Comment.objects.filter(
             finding_id=finding_id,
             is_active=True,
-            parent__isnull=True  # Only top-level comments
+            parent__isnull=True
         )
 
     def perform_create(self, serializer):
@@ -73,7 +74,7 @@ class PublicationCommentListCreateView(generics.ListCreateAPIView):
         return Comment.objects.filter(
             publication_id=publication_id,
             is_active=True,
-            parent__isnull=True  # Only top-level comments
+            parent__isnull=True
         )
 
     def perform_create(self, serializer):

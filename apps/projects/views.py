@@ -14,7 +14,6 @@ from .serializers import (
 from apps.research_groups.models import ResearchGroup
 from apps.tags.models import Tag
 
-
 User = get_user_model()
 
 
@@ -37,7 +36,10 @@ class ProjectListCreateView(generics.ListCreateAPIView):
             return [IsAuthenticated()]
         return [AllowAny()]
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
         # Handle research group
         research_group = None
         research_group_id = serializer.validated_data.pop('research_group_id', None)
@@ -47,24 +49,31 @@ class ProjectListCreateView(generics.ListCreateAPIView):
         # Handle tags
         tag_names = serializer.validated_data.pop('tags', [])
 
+        # Create project
         project = serializer.save(
-            principal_investigator=self.request.user,
+            principal_investigator=request.user,
             research_group=research_group,
-            created_by=self.request.user,
-            updated_by=self.request.user
+            created_by=request.user,
+            updated_by=request.user
         )
 
         # Add tags
-        for tag_name in tag_names:
-            tag, created = Tag.objects.get_or_create(name=tag_name)
-            project.tags.add(tag)
+        if tag_names:
+            for tag_name in tag_names:
+                tag, created = Tag.objects.get_or_create(name=tag_name)
+                project.tags.add(tag)
 
         # Add creator as principal investigator member
         ProjectMember.objects.create(
             project=project,
-            user=self.request.user,
+            user=request.user,
             role='principal_investigator'
         )
+
+        # Return response with ProjectSerializer
+        response_serializer = ProjectSerializer(project)
+        headers = self.get_success_headers(response_serializer.data)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class ProjectDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -149,7 +158,6 @@ class ProjectMemberListCreateView(generics.ListCreateAPIView):
         project_id = self.kwargs['project_id']
         project = get_object_or_404(Project, id=project_id, is_active=True)
 
-        # Check permissions
         if (project.principal_investigator != self.request.user and
                 not self.request.user.is_staff and
                 not project.members.filter(user=self.request.user,
@@ -186,20 +194,16 @@ class ProjectMemberDetailView(generics.RetrieveUpdateDestroyAPIView):
         member = self.get_object()
         project = member.project
 
-        # Check permissions
         if (project.principal_investigator != self.request.user and
                 not self.request.user.is_staff):
             raise PermissionError("Only project PI or admin can update members")
-
         serializer.save()
 
     def perform_destroy(self, instance):
         project = instance.project
 
-        # Check permissions
         if (project.principal_investigator != self.request.user and
                 not self.request.user.is_staff):
             raise PermissionError("Only project PI or admin can remove members")
-
         instance.is_active = False
         instance.save()

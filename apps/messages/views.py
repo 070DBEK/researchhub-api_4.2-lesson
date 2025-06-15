@@ -5,10 +5,10 @@ from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db import models
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
-from django.db import models
-from . import models, serializers
+
 from .models import Message
 from .serializers import MessageSerializer, MessageCreateSerializer
 
@@ -49,7 +49,8 @@ class MessageListCreateView(generics.ListCreateAPIView):
         recipient = get_object_or_404(User, id=recipient_id)
 
         if recipient == self.request.user:
-            raise serializers.ValidationError("Cannot send message to yourself")
+            from rest_framework import serializers as drf_serializers
+            raise drf_serializers.ValidationError("Cannot send message to yourself")
 
         serializer.save(
             sender=self.request.user,

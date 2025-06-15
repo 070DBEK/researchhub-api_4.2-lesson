@@ -9,7 +9,7 @@ class PublicationSerializer(serializers.ModelSerializer):
     project = ProjectSerializer(read_only=True)
     findings = serializers.SerializerMethodField()
     citation = serializers.ReadOnlyField()
-    tags = serializers.StringRelatedField(many=True, read_only=True)
+    tags = serializers.SerializerMethodField()
     created_by = UserSerializer(read_only=True)
     updated_by = UserSerializer(read_only=True)
 
@@ -31,6 +31,9 @@ class PublicationSerializer(serializers.ModelSerializer):
     def get_findings(self, obj):
         from apps.findings.serializers import FindingSerializer
         return FindingSerializer(obj.findings.all(), many=True).data
+
+    def get_tags(self, obj):
+        return [tag.name for tag in obj.tags.all()]
 
 
 class PublicationCreateSerializer(serializers.ModelSerializer):

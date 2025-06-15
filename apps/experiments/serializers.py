@@ -9,7 +9,7 @@ class ExperimentSerializer(serializers.ModelSerializer):
     lead_researcher = UserSerializer(read_only=True)
     collaborators = UserSerializer(many=True, read_only=True)
     findings_count = serializers.ReadOnlyField()
-    tags = serializers.StringRelatedField(many=True, read_only=True)
+    tags = serializers.SerializerMethodField()
     created_by = UserSerializer(read_only=True)
     updated_by = UserSerializer(read_only=True)
 
@@ -25,6 +25,9 @@ class ExperimentSerializer(serializers.ModelSerializer):
             'id', 'project', 'lead_researcher', 'is_active',
             'created_at', 'updated_at', 'created_by', 'updated_by'
         ]
+
+    def get_tags(self, obj):
+        return [tag.name for tag in obj.tags.all()]
 
 
 class ExperimentCreateSerializer(serializers.ModelSerializer):

@@ -15,8 +15,8 @@ class CommentSerializer(serializers.ModelSerializer):
         model = Comment
         fields = [
             'id', 'content', 'parent', 'finding', 'publication',
-            'author', 'replies_count', 'likes_count', 'is_active',
-            'created_at', 'updated_at'
+            'author', 'replies_count', 'likes_count',
+            'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = [
             'id', 'author', 'replies_count', 'likes_count',
@@ -59,7 +59,6 @@ class CommentCreateSerializer(serializers.ModelSerializer):
 
         if finding_id and publication_id:
             raise serializers.ValidationError("Cannot comment on both finding and publication")
-
         return attrs
 
 

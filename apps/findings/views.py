@@ -1,14 +1,15 @@
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
-
 from .models import Finding
 from .serializers import FindingSerializer, FindingCreateSerializer, FindingUpdateSerializer
 from apps.experiments.models import Experiment
 from apps.tags.models import Tag
+
 
 User = get_user_model()
 
@@ -32,26 +33,30 @@ class FindingListCreateView(generics.ListCreateAPIView):
             return [IsAuthenticated()]
         return [AllowAny()]
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         experiment_id = serializer.validated_data.pop('experiment_id')
         experiment = get_object_or_404(Experiment, id=experiment_id, is_active=True)
 
-        # Check if user is project member
-        if not experiment.project.members.filter(user=self.request.user, is_active=True).exists():
-            raise PermissionError("Only project members can create findings")
-
+        if not experiment.project.members.filter(user=request.user, is_active=True).exists():
+            return Response(
+                {'detail': 'Only project members can create findings'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         tag_names = serializer.validated_data.pop('tags', [])
-
         finding = serializer.save(
             experiment=experiment,
-            created_by=self.request.user,
-            updated_by=self.request.user
+            created_by=request.user,
+            updated_by=request.user
         )
 
-        # Add tags
         for tag_name in tag_names:
             tag, created = Tag.objects.get_or_create(name=tag_name)
             finding.tags.add(tag)
+        response_serializer = FindingSerializer(finding)
+        headers = self.get_success_headers(response_serializer.data)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class FindingDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -70,35 +75,40 @@ class FindingDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        # Increment view count
         instance.views_count += 1
         instance.save(update_fields=['views_count'])
-        return super().retrieve(request, *args, **kwargs)
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
 
-    def perform_update(self, serializer):
-        finding = self.get_object()
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
 
-        # Check permissions
-        if (finding.created_by != self.request.user and
-                not self.request.user.is_staff):
-            raise PermissionError("Only finding creator or admin can update finding")
-
+        if (instance.created_by != request.user and
+                not request.user.is_staff):
+            return Response(
+                {'detail': 'Only finding creator or admin can update finding'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
         tag_names = serializer.validated_data.pop('tags', None)
+        finding = serializer.save(updated_by=request.user)
 
-        finding = serializer.save(updated_by=self.request.user)
-
-        # Update tags
         if tag_names is not None:
             finding.tags.clear()
             for tag_name in tag_names:
                 tag, created = Tag.objects.get_or_create(name=tag_name)
                 finding.tags.add(tag)
 
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+        return Response(FindingSerializer(finding).data)
+
     def perform_destroy(self, instance):
-        # Check permissions
         if (instance.created_by != self.request.user and
                 not self.request.user.is_staff):
-            raise PermissionError("Only finding creator or admin can delete finding")
-
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only finding creator or admin can delete finding")
         instance.is_active = False
         instance.save()

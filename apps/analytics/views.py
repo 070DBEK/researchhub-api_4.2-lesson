@@ -8,12 +8,12 @@ from django.utils import timezone
 from datetime import timedelta, datetime
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
-
 from .models import UserActivity
 from .serializers import UserActivitySerializer, AnalyticsSummarySerializer
 from apps.projects.models import Project
 from apps.findings.models import Finding
 from apps.publications.models import Publication
+
 
 User = get_user_model()
 
@@ -25,9 +25,8 @@ def analytics_summary(request):
     period = request.query_params.get('period', 'month')
     start_date = request.query_params.get('start_date')
     end_date = request.query_params.get('end_date')
-
-    # Calculate date range
     now = timezone.now()
+
     if start_date and end_date:
         start = datetime.fromisoformat(start_date)
         end = datetime.fromisoformat(end_date)
@@ -47,7 +46,6 @@ def analytics_summary(request):
         start = None
         end = None
 
-    # Basic counts
     total_users = User.objects.count()
     active_users = User.objects.filter(is_active=True).count()
     total_projects = Project.objects.count()
@@ -55,7 +53,6 @@ def analytics_summary(request):
     total_findings = Finding.objects.filter(is_active=True).count()
     total_publications = Publication.objects.filter(is_active=True).count()
 
-    # Activity counts
     activities_query = UserActivity.objects.all()
     if start and end:
         activities_query = activities_query.filter(created_at__range=[start, end])
@@ -63,18 +60,16 @@ def analytics_summary(request):
     total_views = activities_query.filter(action='view').count()
     total_downloads = activities_query.filter(action='download').count()
 
-    # Growth data (simplified)
     user_growth = {
         'labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-        'data': [10, 20, 30, 40, 50, 60]  # Placeholder data
+        'data': [10, 20, 30, 40, 50, 60]
     }
 
     project_growth = {
         'labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-        'data': [5, 10, 15, 20, 25, 30]  # Placeholder data
+        'data': [5, 10, 15, 20, 25, 30]
     }
 
-    # Top viewed findings
     top_viewed_findings = Finding.objects.filter(is_active=True).order_by('-views_count')[:5]
     top_viewed_findings_data = [
         {
@@ -85,7 +80,6 @@ def analytics_summary(request):
         for finding in top_viewed_findings
     ]
 
-    # Top cited publications
     top_cited_publications = Publication.objects.filter(is_active=True).order_by('-citations_count')[:5]
     top_cited_publications_data = [
         {

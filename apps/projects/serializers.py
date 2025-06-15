@@ -11,7 +11,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     experiments_count = serializers.ReadOnlyField()
     findings_count = serializers.ReadOnlyField()
     publications_count = serializers.ReadOnlyField()
-    tags = serializers.StringRelatedField(many=True, read_only=True)
+    tags = serializers.SerializerMethodField()
     created_by = UserSerializer(read_only=True)
     updated_by = UserSerializer(read_only=True)
 
@@ -29,6 +29,9 @@ class ProjectSerializer(serializers.ModelSerializer):
             'id', 'principal_investigator', 'is_active', 'created_at',
             'updated_at', 'created_by', 'updated_by'
         ]
+
+    def get_tags(self, obj):
+        return [tag.name for tag in obj.tags.all()]
 
 
 class ProjectCreateSerializer(serializers.ModelSerializer):

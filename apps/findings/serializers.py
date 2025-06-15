@@ -9,7 +9,7 @@ class FindingSerializer(serializers.ModelSerializer):
     project = serializers.SerializerMethodField()
     attachments_count = serializers.ReadOnlyField()
     comments_count = serializers.ReadOnlyField()
-    tags = serializers.StringRelatedField(many=True, read_only=True)
+    tags = serializers.SerializerMethodField()
     created_by = UserSerializer(read_only=True)
     updated_by = UserSerializer(read_only=True)
 
@@ -30,6 +30,9 @@ class FindingSerializer(serializers.ModelSerializer):
     def get_project(self, obj):
         from apps.projects.serializers import ProjectSerializer
         return ProjectSerializer(obj.project).data
+
+    def get_tags(self, obj):
+        return [tag.name for tag in obj.tags.all()]
 
 
 class FindingCreateSerializer(serializers.ModelSerializer):

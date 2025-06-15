@@ -1,15 +1,16 @@
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
-
 from .models import Publication
 from .serializers import PublicationSerializer, PublicationCreateSerializer, PublicationUpdateSerializer
 from apps.projects.models import Project
 from apps.findings.models import Finding
 from apps.tags.models import Tag
+
 
 User = get_user_model()
 
@@ -33,38 +34,64 @@ class PublicationListCreateView(generics.ListCreateAPIView):
             return [IsAuthenticated()]
         return [AllowAny()]
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         project_id = serializer.validated_data.pop('project_id')
         project = get_object_or_404(Project, id=project_id, is_active=True)
-
-        # Check if user is project member
-        if not project.members.filter(user=self.request.user, is_active=True).exists():
-            raise PermissionError("Only project members can create publications")
-
+        if not project.members.filter(user=request.user, is_active=True).exists():
+            return Response(
+                {'detail': 'Only project members can create publications'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         author_ids = serializer.validated_data.pop('author_ids')
         finding_ids = serializer.validated_data.pop('finding_ids', [])
         tag_names = serializer.validated_data.pop('tags', [])
+        invalid_authors = []
+        valid_authors = []
+        for author_id in author_ids:
+            try:
+                author = User.objects.get(id=author_id)
+                valid_authors.append(author)
+            except User.DoesNotExist:
+                invalid_authors.append(author_id)
 
+        if invalid_authors:
+            return Response(
+                {'detail': f'Authors with IDs {invalid_authors} do not exist'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        invalid_findings = []
+        valid_findings = []
+        for finding_id in finding_ids:
+            try:
+                finding = Finding.objects.get(id=finding_id, is_active=True)
+                valid_findings.append(finding)
+            except Finding.DoesNotExist:
+                invalid_findings.append(finding_id)
+
+        if invalid_findings:
+            return Response(
+                {'detail': f'Findings with IDs {invalid_findings} do not exist'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         publication = serializer.save(
             project=project,
-            created_by=self.request.user,
-            updated_by=self.request.user
+            created_by=request.user,
+            updated_by=request.user
         )
-
-        # Add authors
-        for author_id in author_ids:
-            author = get_object_or_404(User, id=author_id)
+        for author in valid_authors:
             publication.authors.add(author)
 
-        # Add findings
-        for finding_id in finding_ids:
-            finding = get_object_or_404(Finding, id=finding_id, is_active=True)
+        for finding in valid_findings:
             publication.findings.add(finding)
 
-        # Add tags
         for tag_name in tag_names:
             tag, created = Tag.objects.get_or_create(name=tag_name)
             publication.tags.add(tag)
+        response_serializer = PublicationSerializer(publication)
+        headers = self.get_success_headers(response_serializer.data)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class PublicationDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -83,51 +110,85 @@ class PublicationDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        # Increment view count
         instance.views_count += 1
         instance.save(update_fields=['views_count'])
-        return super().retrieve(request, *args, **kwargs)
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
 
-    def perform_update(self, serializer):
-        publication = self.get_object()
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
 
-        # Check permissions - only authors or admin can update
-        if (not publication.authors.filter(id=self.request.user.id).exists() and
-                not self.request.user.is_staff):
-            raise PermissionError("Only publication authors or admin can update publication")
-
+        if (not instance.authors.filter(id=request.user.id).exists() and
+                not request.user.is_staff):
+            return Response(
+                {'detail': 'Only publication authors or admin can update publication'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
         author_ids = serializer.validated_data.pop('author_ids', None)
         finding_ids = serializer.validated_data.pop('finding_ids', None)
         tag_names = serializer.validated_data.pop('tags', None)
 
-        publication = serializer.save(updated_by=self.request.user)
+        if author_ids is not None:
+            invalid_authors = []
+            valid_authors = []
+            for author_id in author_ids:
+                try:
+                    author = User.objects.get(id=author_id)
+                    valid_authors.append(author)
+                except User.DoesNotExist:
+                    invalid_authors.append(author_id)
 
-        # Update authors
+            if invalid_authors:
+                return Response(
+                    {'detail': f'Authors with IDs {invalid_authors} do not exist'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        if finding_ids is not None:
+            invalid_findings = []
+            valid_findings = []
+            for finding_id in finding_ids:
+                try:
+                    finding = Finding.objects.get(id=finding_id, is_active=True)
+                    valid_findings.append(finding)
+                except Finding.DoesNotExist:
+                    invalid_findings.append(finding_id)
+
+            if invalid_findings:
+                return Response(
+                    {'detail': f'Findings with IDs {invalid_findings} do not exist'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        publication = serializer.save(updated_by=request.user)
+
         if author_ids is not None:
             publication.authors.clear()
-            for author_id in author_ids:
-                author = get_object_or_404(User, id=author_id)
+            for author in valid_authors:
                 publication.authors.add(author)
 
-        # Update findings
         if finding_ids is not None:
             publication.findings.clear()
-            for finding_id in finding_ids:
-                finding = get_object_or_404(Finding, id=finding_id, is_active=True)
+            for finding in valid_findings:
                 publication.findings.add(finding)
 
-        # Update tags
         if tag_names is not None:
             publication.tags.clear()
             for tag_name in tag_names:
                 tag, created = Tag.objects.get_or_create(name=tag_name)
                 publication.tags.add(tag)
 
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+        return Response(PublicationSerializer(publication).data)
+
     def perform_destroy(self, instance):
-        # Check permissions - only authors or admin can delete
         if (not instance.authors.filter(id=self.request.user.id).exists() and
                 not self.request.user.is_staff):
-            raise PermissionError("Only publication authors or admin can delete publication")
-
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only publication authors or admin can delete publication")
         instance.is_active = False
         instance.save()
