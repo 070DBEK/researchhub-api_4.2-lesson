@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ResearchHub API</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f9f9f9;
+      color: #333;
+      max-width: 800px;
+      margin: auto;
+      padding: 20px;
+    }
+    h1, h2 {
+      color: #0056b3;
+    }
+    section {
+      margin-bottom: 40px;
+    }
+    code {
+      display: block;
+      background: #eef3fa;
+      padding: 10px;
+      border-radius: 6px;
+      margin: 5px 0;
+    }
+    a {
+      color: #0077cc;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🔬 ResearchHub API</h1>
+<p>Welcome to the ResearchHub backend API documentation overview. Click any endpoint to test or inspect.</p>
+
+<section>
+  <h2>🔐 Authentication</h2>
+  <code><a href="/api/v1/auth/register/">POST /auth/register/</a></code>
+  <code><a href="/api/v1/auth/login/">POST /auth/login/</a></code>
+  <code><a href="/api/v1/auth/logout/">POST /auth/logout/</a></code>
+  <code><a href="/api/v1/auth/verify-email/">POST /auth/verify-email/</a></code>
+  <code><a href="/api/v1/auth/password-reset/">POST /auth/password-reset/</a></code>
+  <code><a href="/api/v1/auth/token/refresh/">POST /auth/token/refresh/</a></code>
+</section>
+
+<section>
+  <h2>👤 Users & Profiles</h2>
+  <code><a href="/api/v1/users/">GET /users/</a></code>
+  <code><a href="/api/v1/users/me/">GET /users/me/</a></code>
+  <code><a href="/api/v1/profiles/{id}/follow/">POST /profiles/{id}/follow/</a></code>
+  <code><a href="/api/v1/profiles/{id}/unfollow/">POST /profiles/{id}/unfollow/</a></code>
+</section>
+
+<section>
+  <h2>📚 Core Resources</h2>
+  <code><a href="/api/v1/research-groups/">GET/POST /research-groups/</a></code>
+  <code><a href="/api/v1/projects/">GET/POST /projects/</a></code>
+  <code><a href="/api/v1/experiments/">GET/POST /experiments/</a></code>
+  <code><a href="/api/v1/findings/">GET/POST /findings/</a></code>
+  <code><a href="/api/v1/publications/">GET/POST /publications/</a></code>
+</section>
+
+<section>
+  <h2>👍 Likes</h2>
+  <code><a href="/api/v1/findings/1/like/">POST /findings/{id}/like/</a></code>
+  <code><a href="/api/v1/findings/1/unlike/">POST /findings/{id}/unlike/</a></code>
+</section>
+
+<section>
+  <h2>💬 Social Features</h2>
+  <code><a href="/api/v1/messages/">GET/POST /messages/</a></code>
+  <code><a href="/api/v1/notifications/">GET /notifications/</a></code>
+  <code><a href="/api/v1/notifications/1/mark-as-read/">POST /notifications/{id}/mark-as-read/</a></code>
+</section>
+
+<section>
+  <h2>💡 Comments & Attachments</h2>
+  <code><a href="/api/v1/comments/">GET/POST /comments/</a></code>
+  <code><a href="/api/v1/attachments/">GET/POST /attachments/</a></code>
+</section>
+
+<section>
+  <h2>🔍 Search & Analytics</h2>
+  <code><a href="/api/v1/search/?q=test">GET /search/?q=query</a></code>
+  <code><a href="/api/v1/tags/">GET /tags/</a></code>
+  <code><a href="/api/v1/analytics/summary/">GET /analytics/summary/</a></code>
+</section>
+
+<section>
+  <h2>📄 API Schema</h2>
+  <code><a href="/api/schema/">GET /api/schema/</a></code>
+  <code><a href="/api/docs/">GET /api/docs/</a></code>
+</section>
+
+</body>
+</html>
