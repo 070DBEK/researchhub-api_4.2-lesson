@@ -7,10 +7,13 @@ For more information on this file, see
 https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
 """
 
+# config/wsgi.py ni tekshiring va yangilang
+
 import os
-
 from django.core.wsgi import get_wsgi_application
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")
-
+# Production settings
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.production')
 application = get_wsgi_application()
+
+# Vercel uchun
+app = application
